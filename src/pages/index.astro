@@ -1,5 +1,5 @@
 ---
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { parseWantedList } from '../lib/parseWantedList';
 import { colorName, colorHex } from '../lib/colors';
 
@@ -8,7 +8,9 @@ const sections = [
   { slug: 'backwall', title: 'Backwall', file: 'backwall octopussy.xml' },
   { slug: 'power', title: 'Power', file: 'Octopussy power.xml' },
 ].map((s) => {
-  const parts = parseWantedList(fileURLToPath(new URL(`../../${encodeURIComponent(s.file)}`, import.meta.url)));
+  // resolve from the project root: Astro 7 prerenders from a bundle inside dist/,
+  // so import.meta.url no longer points at the source tree
+  const parts = parseWantedList(join(process.cwd(), s.file));
   return { ...s, parts, pieces: parts.reduce((n, p) => n + p.qtyNeeded, 0) };
 });
 
