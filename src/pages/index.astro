@@ -41,6 +41,11 @@ const partUrl = (p: { partId: string; colorId: number }) =>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Octopussy brick tracker</title>
+    {/* use-credentials so the manifest fetch carries the Pangolin session cookie */}
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#d8e7f4" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e1b29" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link
       rel="icon"
       href={`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1" y="5" width="14" height="10" rx="1.5" fill="%23E3000B"/><rect x="3" y="2" width="4" height="4" rx="1" fill="%23E3000B"/><rect x="9" y="2" width="4" height="4" rx="1" fill="%23E3000B"/></svg>').replace(/%2523/g, '%23')}`}
