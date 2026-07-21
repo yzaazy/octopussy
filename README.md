@@ -15,18 +15,18 @@ npm run preview   # serve the built site locally
 
 Updated a wanted list on BrickLink? Just overwrite the XML file in the repo root and rebuild.
 
-## Deploy on TrueNAS (Custom App, stock nginx)
+## Deploy on TrueNAS (Custom App pulling from GHCR)
 
-1. `npm run build`
-2. Copy the contents of `dist/` and `deploy/nginx.conf` to a dataset, e.g. `/mnt/<pool>/apps/lego-tracker/site` and `/mnt/<pool>/apps/lego-tracker/nginx.conf`.
-3. Make the site directory writable by the container's nginx user (uid 101), so it can write `progress.json`:
-   `chown -R 101:101 /mnt/<pool>/apps/lego-tracker/site` (or grant via ACL).
-4. TrueNAS UI → Apps → **Custom App**:
-   - Image: `nginx`, tag `alpine`
+Every push to `main` triggers GitHub Actions (`.github/workflows/docker.yml`) to build the site and publish it as `ghcr.io/yzaazy/octopussy:latest` — an nginx image with the site baked in.
+
+One-time setup:
+
+1. Make the GHCR package public so the NAS can pull it anonymously: github.com → your profile → **Packages** → `octopussy` → **Package settings** → Change visibility → Public.
+2. Create a dataset for the progress file, e.g. `/mnt/<pool>/lego-tracker`, and make it writable by the container's nginx user (uid 101): `chown 101:101 /mnt/<pool>/lego-tracker`.
+3. TrueNAS UI → Apps → **Custom App**:
+   - Image repository: `ghcr.io/yzaazy/octopussy`, tag `latest`
    - Port: e.g. host `8080` → container `80`
-   - Host path mounts:
-     - `/mnt/<pool>/apps/lego-tracker/site` → `/usr/share/nginx/html`
-     - `/mnt/<pool>/apps/lego-tracker/nginx.conf` → `/etc/nginx/conf.d/default.conf` (read-only)
-5. Expose it through Pangolin — authentication lives there; the app itself has none.
+   - Host path mount: `/mnt/<pool>/lego-tracker` → `/data` (this is where `progress.json` lives, so it survives image updates)
+4. Expose it through Pangolin — authentication lives there; the app itself has none.
 
-**Updating the site:** rebuild and re-copy `dist/` — but never delete `progress.json`, it holds your tracked progress. Back it up with the Export button in the site footer.
+**Updating the site:** push to `main`, wait for the Action to finish, then hit the app's update button in the TrueNAS Apps screen to pull the new image. Your progress is safe in `/data`; back it up anytime with the Export button in the site footer.

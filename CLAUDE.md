@@ -29,8 +29,8 @@ There are no tests or linters configured.
 Owned quantities live in a single flat object `{ [sectionKey]: ownedQty }`:
 - Loaded from `GET progress.json` (same origin); falls back to `localStorage` if that fails (which is the normal case in `npm run dev`).
 - Saved via debounced `PUT progress.json` — in production nginx's dav module writes the file (see `deploy/nginx.conf`); `localStorage` is always mirrored as backup. The sync indicator in the header reflects which mode is active.
-- `progress.json` is intentionally NOT part of the build output: it is created on the server by the first PUT, so re-deploying `dist/` never clobbers progress.
+- `progress.json` is served from and written to `/data` (a mounted volume), NOT the site root, so image updates never clobber progress. It's created by the first PUT.
 
 ## Deployment
 
-TrueNAS Custom App running stock `nginx:alpine`: the `dist/` output and `deploy/nginx.conf` are copied to a dataset and mounted into the container (site → `/usr/share/nginx/html`, conf → `/etc/nginx/conf.d/default.conf`). The site dir must be writable by uid 101 so nginx can PUT `progress.json`. Auth is handled by Pangolin in front — nothing in this app. Full steps in README.md.
+Push to `main` → GitHub Actions (`.github/workflows/docker.yml`) builds the multi-stage `Dockerfile` (node build → nginx:alpine with `dist/` and `deploy/nginx.conf` baked in) and publishes `ghcr.io/yzaazy/octopussy:latest`. TrueNAS runs it as a Custom App with one host-path mount: a dataset (writable by uid 101) at `/data` for `progress.json`. Auth is handled by Pangolin in front — nothing in this app. Full steps in README.md.
