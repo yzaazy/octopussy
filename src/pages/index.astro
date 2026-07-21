@@ -59,7 +59,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
 
       <div class="overall">
         <div class="studs" id="stud-bar" role="img" aria-label="Totale voortgang">
-          {Array.from({ length: STUDS }).map(() => <span class="stud"></span>)}
+          {Array.from({ length: STUDS }).map((_, i) => <span class="stud" style={`--i: ${i}`}></span>)}
         </div>
         <p class="overall-count">
           <strong id="pieces-owned">0</strong> van <strong>{totalPieces}</strong> stenen ·
@@ -100,17 +100,22 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       {
         sections.map((section) => (
           <section data-section={section.slug}>
-            <div class="section-head">
-              <h2>{section.title}</h2>
-              <div class="section-meta">
-                <span class="section-count" data-count-for={section.slug}>
-                  0 / {section.pieces}
-                </span>
-                <div class="bar">
-                  <div class="bar-fill" data-bar-for={section.slug} />
+            <details open data-collapse={section.slug}>
+            <summary>
+              <div class="section-head">
+                <span class="chev" aria-hidden="true">▸</span>
+                <h2>{section.title}</h2>
+                <span class="party">🎉 AF!</span>
+                <div class="section-meta">
+                  <span class="section-count" data-count-for={section.slug}>
+                    0 / {section.pieces}
+                  </span>
+                  <div class="bar">
+                    <div class="bar-fill" data-bar-for={section.slug} />
+                  </div>
                 </div>
               </div>
-            </div>
+            </summary>
             <div class="grid">
               {section.parts.map((p) => {
                 const key = `${section.slug}:${p.key}`;
@@ -142,6 +147,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
                 );
               })}
             </div>
+            </details>
           </section>
         ))
       }
@@ -253,14 +259,51 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         document.getElementById('pieces-owned')!.textContent = String(piecesOwned);
         document.getElementById('parts-done')!.textContent = String(lotsDone);
 
-        const studs = document.querySelectorAll('#stud-bar .stud');
+        const studBar = document.getElementById('stud-bar')!;
+        const studs = studBar.querySelectorAll('.stud');
         const filled = Math.round((piecesOwned / piecesNeeded) * studs.length);
         studs.forEach((stud, i) => stud.classList.toggle('filled', i < filled));
+        studBar.classList.toggle('complete', piecesNeeded > 0 && piecesOwned >= piecesNeeded);
 
         for (const [slug, s] of Object.entries(perSection)) {
           const pct = s.needed ? (s.owned / s.needed) * 100 : 0;
           document.querySelector<HTMLElement>(`[data-bar-for="${slug}"]`)!.style.width = `${pct}%`;
           document.querySelector(`[data-count-for="${slug}"]`)!.textContent = `${s.owned} / ${s.needed}`;
+
+          const sectionEl = document.querySelector<HTMLElement>(`section[data-section="${slug}"]`)!;
+          const complete = s.needed > 0 && s.owned >= s.needed;
+          sectionEl.classList.toggle('section-complete', complete);
+          // confetti only when a section is newly finished during use, not on page load
+          if (complete && sectionsSeeded && !completedSections.has(slug)) {
+            burstConfetti(sectionEl.querySelector<HTMLElement>('.section-head')!);
+          }
+          if (complete) completedSections.add(slug);
+          else completedSections.delete(slug);
+        }
+        sectionsSeeded = true;
+      }
+
+      const completedSections = new Set<string>();
+      let sectionsSeeded = false;
+
+      function burstConfetti(head: HTMLElement) {
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        // Astro scopes this page's CSS via a data-astro-cid attribute;
+        // dynamically created elements need it too or the styles won't apply
+        const scopeAttr = head.getAttributeNames().find((n) => n.startsWith('data-astro-cid'));
+        const colors = ['#ffd54f', '#ff6259', '#4fc3f7', '#85e08a', '#f48fb1', '#f9a000'];
+        for (let i = 0; i < 40; i++) {
+          const c = document.createElement('span');
+          c.className = 'confetti';
+          if (scopeAttr) c.setAttribute(scopeAttr, '');
+          c.style.setProperty('--c', colors[i % colors.length]);
+          c.style.left = `${Math.random() * 100}%`;
+          c.style.setProperty('--dx', `${(Math.random() - 0.5) * 140}px`);
+          c.style.setProperty('--rot', `${(Math.random() - 0.5) * 720}deg`);
+          c.style.setProperty('--dur', `${1 + Math.random()}s`);
+          c.style.animationDelay = `${Math.random() * 0.3}s`;
+          head.appendChild(c);
+          setTimeout(() => c.remove(), 2600);
         }
       }
 
@@ -393,6 +436,69 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         importFile.value = '';
       });
 
+      /* ---------- collapsible sections (remembered per device) ---------- */
+
+      const COLLAPSED_KEY = 'octopussy-collapsed';
+      const collapsedSections = new Set<string>(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]'));
+      for (const d of document.querySelectorAll<HTMLDetailsElement>('details[data-collapse]')) {
+        const slug = d.dataset.collapse!;
+        d.open = !collapsedSections.has(slug);
+        d.addEventListener('toggle', () => {
+          if (d.open) collapsedSections.delete(slug);
+          else collapsedSections.add(slug);
+          localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsedSections]));
+        });
+      }
+
+      /* ---------- kermis light programs ---------- */
+
+      const PROGRAMS = ['program-looplicht', 'program-renner', 'program-paparazzi', 'program-inloop'];
+      const studBar = document.getElementById('stud-bar')!;
+
+      // inloop sequencer: outermost lit bulbs turn on first, pair by pair
+      // toward the middle; once all are on, everything strobes, then repeat
+      let inloopTimer: ReturnType<typeof setTimeout> | undefined;
+      function startInloop() {
+        const lit = [...studBar.querySelectorAll<HTMLElement>('.stud.filled')];
+        if (!lit.length) return;
+        let l = 0;
+        let r = lit.length - 1;
+        const step = () => {
+          if (l <= r) {
+            lit[l++].classList.add('on');
+            lit[r--].classList.add('on');
+            inloopTimer = setTimeout(step, 220);
+          } else {
+            lit.forEach((s) => s.classList.add('strobe-all'));
+            inloopTimer = setTimeout(() => {
+              lit.forEach((s) => s.classList.remove('on', 'strobe-all'));
+              l = 0;
+              r = lit.length - 1;
+              inloopTimer = setTimeout(step, 300);
+            }, 1400);
+          }
+        };
+        step();
+      }
+      function stopInloop() {
+        clearTimeout(inloopTimer);
+        studBar.querySelectorAll('.stud').forEach((s) => s.classList.remove('on', 'strobe-all'));
+      }
+
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        let program = 0;
+        studBar.classList.add(PROGRAMS[program]);
+        const nextProgram = () => {
+          stopInloop();
+          studBar.classList.remove(PROGRAMS[program]);
+          program = (program + 1) % PROGRAMS.length;
+          studBar.classList.add(PROGRAMS[program]);
+          if (PROGRAMS[program] === 'program-inloop') startInloop();
+          setTimeout(nextProgram, studBar.classList.contains('complete') ? 3000 : 7000);
+        };
+        setTimeout(nextProgram, 7000);
+      }
+
       /* ---------- init ---------- */
 
       load().then(() => {
@@ -514,6 +620,9 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         display: flex;
         gap: 0.3rem;
       }
+      /* kermis marquee lights: each lit bulb has its own fixed warm color
+         (red→orange→yellow across the row) and a JS switcher rotates
+         through classic facade light programs */
       .stud {
         flex: 1;
         aspect-ratio: 1;
@@ -521,16 +630,106 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         border-radius: 50%;
         background: var(--card);
         border: 2px solid var(--line);
-        transition: background 0.3s, border-color 0.3s;
+        transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
       }
       .stud.filled {
-        background: var(--accent);
-        border-color: var(--accent);
+        --bulb: hsl(calc(var(--i) * 4) 90% 62%);
+        --bulb-deep: hsl(calc(var(--i) * 4) 90% 44%);
+        background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.95) 0%, var(--bulb) 45%, var(--bulb-deep) 100%);
+        border-color: var(--bulb-deep);
+        box-shadow:
+          0 0 10px var(--bulb),
+          0 0 3px rgb(255 255 255 / 0.6);
       }
+
+      /* light programs (class set on #stud-bar by the switcher) */
+      .program-looplicht .stud.filled {
+        animation: kermis-pulse 1.8s linear infinite;
+        animation-delay: calc(var(--i) * 90ms);
+      }
+      .program-renner .stud.filled {
+        /* half the total stagger: two pulses chase each other */
+        animation: kermis-pulse 0.9s linear infinite;
+        animation-delay: calc(var(--i) * 90ms);
+      }
+      .program-paparazzi .stud.filled {
+        animation: kermis-flash 1.1s linear infinite;
+        animation-delay: calc(mod(var(--i) * 7, 11) * -150ms);
+      }
+      /* inloop: bulbs light up pair-by-pair from both ends toward the middle
+         (JS sequencer toggles .on), then everything strobes together */
+      .program-inloop .stud.filled {
+        filter: brightness(0.35);
+        transition: filter 0.15s, box-shadow 0.15s;
+      }
+      .program-inloop .stud.filled.on {
+        filter: brightness(1.5);
+        box-shadow:
+          0 0 16px var(--bulb),
+          0 0 5px rgb(255 255 255 / 0.9);
+      }
+      .program-inloop .stud.filled.strobe-all {
+        animation: kermis-strobe 0.08s linear infinite;
+      }
+
+      @keyframes kermis-pulse {
+        0%,
+        18%,
+        100% {
+          filter: brightness(0.65);
+          transform: scale(1);
+        }
+        8% {
+          filter: brightness(1.6);
+          transform: scale(1.18);
+          box-shadow:
+            0 0 16px var(--bulb),
+            0 0 5px rgb(255 255 255 / 0.9);
+        }
+      }
+      @keyframes kermis-flash {
+        0%,
+        54%,
+        72%,
+        100% {
+          filter: brightness(0.55);
+          transform: scale(1);
+        }
+        60% {
+          /* flash in the bulb's own color */
+          filter: brightness(1.9) saturate(1.3);
+          transform: scale(1.15);
+          box-shadow:
+            0 0 20px var(--bulb),
+            0 0 8px var(--bulb);
+        }
+      }
+      @keyframes kermis-strobe {
+        0%,
+        44% {
+          filter: brightness(2.2) saturate(0.25);
+          box-shadow:
+            0 0 20px rgb(255 255 255 / 0.95),
+            0 0 8px var(--bulb);
+        }
+        50%,
+        100% {
+          filter: brightness(0.45);
+        }
+      }
+
+      /* feest-mode: everything runs wild at 100% */
+      .studs.complete .stud.filled {
+        animation-duration: 0.7s;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .stud,
         .bar-fill {
           transition: none;
+        }
+        .stud.filled {
+          animation: none !important;
         }
       }
       .overall-count {
@@ -666,11 +865,95 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         margin: 0 auto;
         padding: 1rem 1.2rem 2rem;
       }
+      summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 0.4rem;
+      }
+      .chev {
+        display: inline-block;
+        color: var(--ink-soft);
+        font-size: 0.9rem;
+        transition: transform 0.2s;
+      }
+      details[open] .chev {
+        transform: rotate(90deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .chev {
+          transition: none;
+        }
+      }
       .section-head {
+        position: relative; /* confetti anchor */
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.7rem;
         margin: 1.6rem 0 0.8rem;
+      }
+
+      /* sectie-feestje: shown when a category is 100% complete */
+      .party {
+        display: none;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 0.75rem;
+        padding: 0.1rem 0.5rem;
+        border-radius: 0.5rem;
+        background: #f0a500;
+        color: #fff;
+        white-space: nowrap;
+      }
+      .section-complete .party {
+        display: inline-block;
+      }
+      .section-complete h2 {
+        color: #f0a500;
+      }
+      .section-complete .bar-fill {
+        background: repeating-linear-gradient(45deg, #ffd54f 0 8px, #f9a000 8px 16px);
+        background-size: 23px 100%;
+        animation: shimmer 0.8s linear infinite;
+      }
+      @keyframes shimmer {
+        to {
+          background-position: 23px 0;
+        }
+      }
+      .confetti {
+        position: absolute;
+        top: 50%;
+        width: 0.4rem;
+        height: 0.65rem;
+        border-radius: 2px;
+        background: var(--c);
+        pointer-events: none;
+        z-index: 5;
+        opacity: 0;
+        animation: confetti-fall var(--dur) ease-in forwards;
+      }
+      @keyframes confetti-fall {
+        0% {
+          opacity: 1;
+          transform: translate(0, -10px) rotate(0deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(var(--dx), 130px) rotate(var(--rot));
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .section-complete .bar-fill {
+          animation: none;
+        }
       }
       h2 {
         margin: 0;
