@@ -22,6 +22,10 @@ const usedColors = [...new Set(sections.flatMap((s) => s.parts.map((p) => p.colo
   .sort((a, b) => a.name.localeCompare(b.name));
 const STUDS = 20;
 
+// stamped by the Docker build (see Dockerfile); local builds show "dev"
+const buildSha = (process.env.GIT_SHA ?? 'dev').slice(0, 7);
+const buildDate = process.env.BUILD_DATE ?? '';
+
 // Local copies downloaded by scripts/fetch-images.mjs; BrickLink CDN as fallback.
 const imgUrl = (p: { partId: string; colorId: number }) => `/parts/${p.colorId}-${p.partId}.png`;
 const cdnUrl = (p: { partId: string; colorId: number }) =>
@@ -135,7 +139,10 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       <button id="export">Export backup</button>
       <button id="import">Import backup</button>
       <input type="file" id="import-file" accept="application/json" hidden />
-      <p>Progress is saved to <code>progress.json</code> on the server. Part data & images from BrickLink.</p>
+      <p>
+        Progress is saved to <code>progress.json</code> on the server. Part data & images from BrickLink.
+        <span class="build">build {buildSha}{buildDate && ` · ${buildDate}`}</span>
+      </p>
     </footer>
 
     <script>
@@ -770,6 +777,11 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         margin: 0.3rem 0 0;
         font-size: 0.78rem;
         color: var(--ink-soft);
+      }
+      .build {
+        float: right;
+        opacity: 0.75;
+        font-variant-numeric: tabular-nums;
       }
 
       @media (max-width: 480px) {
