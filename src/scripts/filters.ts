@@ -28,6 +28,15 @@ export function applyFilter() {
   }
 }
 
+/** Spring naar een onderdeel (vanuit de scanner): zoek erop en zet de
+ * andere filters uit zodat het resultaat niet verborgen blijft. */
+export function searchFor(query: string) {
+  searchInput.value = query;
+  colorFilter.value = '';
+  missingOnly.checked = false;
+  applyFilter();
+}
+
 const byPart = (a: HTMLElement, b: HTMLElement) =>
   a.dataset.part!.localeCompare(b.dataset.part!, undefined, { numeric: true });
 const byColor = (a: HTMLElement, b: HTMLElement) => Number(a.dataset.color) - Number(b.dataset.color);

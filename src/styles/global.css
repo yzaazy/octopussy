@@ -237,9 +237,32 @@ h1 span {
   max-width: 72rem;
   margin: 0.7rem auto 0;
 }
-#search {
+.search-wrap {
+  position: relative;
   flex: 1;
   max-width: 14rem;
+}
+.search-wrap #search {
+  padding-right: 2.5rem; /* ruimte voor de scan-knop */
+}
+#scan-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+#scan-btn:hover,
+#scan-btn:focus-visible {
+  color: var(--accent);
 }
 .field {
   position: relative;
@@ -343,6 +366,134 @@ h1 span {
 .missing-toggle:has(input:focus-visible) {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ---------- steen scannen ---------- */
+
+.scan-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 1rem 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+.scan-box {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+.scan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.6rem 0.6rem 1rem;
+  border-bottom: 2px solid var(--line);
+}
+.scan-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.05rem;
+}
+.scan-close {
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.scan-close:hover {
+  color: var(--ink);
+}
+.scan-body {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.scan-status {
+  margin: 0;
+  padding: 1.2rem 0.5rem;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.scan-hit {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 0.7rem;
+  cursor: pointer;
+}
+.scan-hit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.scan-hit:not(:disabled):hover,
+.scan-hit:not(:disabled):focus-visible {
+  border-color: var(--accent);
+}
+.scan-hit img {
+  width: 3rem;
+  height: 3rem;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 0.45rem;
+}
+.scan-hit-meta {
+  display: grid;
+  min-width: 0;
+}
+.scan-hit-name {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.scan-hit-list {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.scan-hit-miss {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.scan-score {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+/* het gevonden kaartje even laten oplichten na een scan-sprong */
+.scan-flash {
+  animation: scan-flash 2.4s ease;
+}
+@keyframes scan-flash {
+  0%,
+  55% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
 }
 
 /* ---------- sections ---------- */
@@ -687,12 +838,14 @@ footer p {
     gap: 0.65rem 0.45rem; /* extra row gap so the notch labels have room */
     margin-top: 0.5rem;
   }
-  #search {
+  .search-wrap {
     grid-row: 1;
     grid-column: 1;
     max-width: none;
+  }
+  #search {
     font-size: 16px; /* <16px makes iOS zoom in on focus */
-    padding: 0.4rem 0.6rem;
+    padding: 0.4rem 2.5rem 0.4rem 0.6rem;
   }
   .missing-toggle {
     grid-row: 1;

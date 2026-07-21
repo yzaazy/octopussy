@@ -6,6 +6,7 @@
 import { load, scheduleSave, ownedOf, updateOwned } from './state';
 import { initTotals, renderCard, renderTotals } from './totals';
 import { initFilters, applyFilter } from './filters';
+import { initScan } from './scan';
 import { initCollapse } from './collapse';
 import { initLights } from './lights';
 import { burstConfetti } from './confetti';
@@ -43,6 +44,7 @@ for (const card of cards) {
 
 initTotals(cards, burstConfetti);
 initFilters(cards);
+initScan(cards);
 initBackup(cards, renderAll);
 initCollapse();
 initLights();
