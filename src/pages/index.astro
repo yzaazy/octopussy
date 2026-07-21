@@ -382,6 +382,9 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       * {
         box-sizing: border-box;
       }
+      [hidden] {
+        display: none !important;
+      }
       body {
         margin: 0;
         background: var(--bg);
@@ -516,8 +519,27 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       #color-filter::picker(select) {
         appearance: base-select;
       }
+      #color-filter::picker(select) {
+        background: var(--card);
+        color: var(--ink);
+        border: 2px solid var(--line);
+        border-radius: 0.6rem;
+        padding: 0.25rem;
+        margin-top: 0.3rem;
+        box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
+      }
       #color-filter option {
         padding: 0.3rem 0.6rem;
+        border-radius: 0.4rem;
+      }
+      #color-filter option:hover,
+      #color-filter option:focus-visible {
+        background: var(--bg);
+        outline: none;
+      }
+      #color-filter option::checkmark {
+        color: var(--accent);
+        margin-right: 0.35rem;
       }
       .opt-dot {
         display: inline-block;
