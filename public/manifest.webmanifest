@@ -1,7 +1,8 @@
 {
-  "name": "Octopussy brick tracker",
-  "short_name": "Bricks",
-  "description": "Track which LEGO parts of the Octopussy model you own",
+  "name": "Octopussy kermis tracker",
+  "short_name": "Octopussy",
+  "description": "Verlanglijst voor de LEGO Octopussy kermisattractie (MOC van LetsGoRides)",
+  "lang": "nl",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#17334D",

@@ -5,8 +5,8 @@ import { colorName, colorHex } from '../lib/colors';
 
 const sections = [
   { slug: 'octopussy', title: 'Octopussy', file: 'Octopussy.xml' },
-  { slug: 'backwall', title: 'Backwall', file: 'backwall octopussy.xml' },
-  { slug: 'power', title: 'Power', file: 'Octopussy power.xml' },
+  { slug: 'backwall', title: 'Achterwand', file: 'backwall octopussy.xml' },
+  { slug: 'power', title: 'Motoren', file: 'Octopussy power.xml' },
 ].map((s) => {
   // resolve from the project root: Astro 7 prerenders from a bundle inside dist/,
   // so import.meta.url no longer points at the source tree
@@ -36,60 +36,62 @@ const partUrl = (p: { partId: string; colorId: number }) =>
   `https://www.bricklink.com/v2/catalog/catalogitem.page?P=${p.partId}&C=${p.colorId}`;
 ---
 
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Octopussy brick tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Octopussy kermis tracker</title>
     {/* use-credentials so the manifest fetch carries the Pangolin session cookie */}
     <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#d8e7f4" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e1b29" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <link
-      rel="icon"
-      href={`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1" y="5" width="14" height="10" rx="1.5" fill="%23E3000B"/><rect x="3" y="2" width="4" height="4" rx="1" fill="%23E3000B"/><rect x="9" y="2" width="4" height="4" rx="1" fill="%23E3000B"/></svg>').replace(/%2523/g, '%23')}`}
-    />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
   </head>
   <body>
     <header>
       <div class="masthead">
-        <h1>Octopussy <span>brick tracker</span></h1>
+        <h1>Octopussy <span>kermis tracker</span></h1>
         <div class="sync" id="sync-status" data-state="loading">
-          <span class="sync-dot"></span><span id="sync-label">Loading…</span>
+          <span class="sync-dot"></span><span id="sync-label">Laden…</span>
         </div>
       </div>
 
       <div class="overall">
-        <div class="studs" id="stud-bar" role="img" aria-label="Overall progress">
+        <div class="studs" id="stud-bar" role="img" aria-label="Totale voortgang">
           {Array.from({ length: STUDS }).map(() => <span class="stud"></span>)}
         </div>
         <p class="overall-count">
-          <strong id="pieces-owned">0</strong> of <strong>{totalPieces}</strong> pieces ·
-          <span id="parts-done">0</span>/{totalParts} lots complete
+          <strong id="pieces-owned">0</strong> van <strong>{totalPieces}</strong> stenen ·
+          <span id="parts-done">0</span>/{totalParts} onderdelen compleet
         </p>
       </div>
 
       <div class="controls">
-        <input type="search" id="search" placeholder="Search part number…" autocomplete="off" />
-        <select id="color-filter" aria-label="Filter by color">
-          <option value="">All colors</option>
-          {usedColors.map((c) => (
-            <option value={c.id}>
-              <span class="opt-dot" style={`background:${colorHex(c.id)}`}></span>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select id="sort-by" aria-label="Sort parts">
-          <option value="color">Sort: color</option>
-          <option value="part">Sort: part number</option>
-          <option value="needed">Sort: most needed</option>
-          <option value="missing">Sort: most missing</option>
-        </select>
+        <input type="search" id="search" placeholder="Zoek onderdeelnummer…" autocomplete="off" />
+        <div class="field field-color">
+          <label for="color-filter">Kleur</label>
+          <select id="color-filter">
+            <option value="">Alle kleuren</option>
+            {usedColors.map((c) => (
+              <option value={c.id}>
+                <span class="opt-dot" style={`background:${colorHex(c.id)}`}></span>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div class="field field-sort">
+          <label for="sort-by">Sorteer</label>
+          <select id="sort-by">
+            <option value="color">Kleur</option>
+            <option value="part">Onderdeelnummer</option>
+            <option value="missing">Meeste nog nodig</option>
+          </select>
+        </div>
         <label class="missing-toggle">
           <input type="checkbox" id="missing-only" />
-          Missing only
+          Nog nodig
         </label>
       </div>
     </header>
@@ -131,10 +133,10 @@ const partUrl = (p: { partId: string; colorId: number }) =>
                       </span>
                     </div>
                     <div class="stepper">
-                      <button class="step" data-step="-1" aria-label={`One fewer ${p.partId}`}>−</button>
-                      <input class="owned" type="number" inputmode="numeric" min="0" max={p.qtyNeeded} value="0" aria-label={`Owned quantity of ${p.partId}`} />
-                      <button class="step" data-step="1" aria-label={`One more ${p.partId}`}>+</button>
-                      <button class="all" aria-label={`Toggle all ${p.qtyNeeded} of ${p.partId}`}>✓</button>
+                      <button class="step" data-step="-1" aria-label={`Eén minder van ${p.partId}`}>−</button>
+                      <input class="owned" type="number" inputmode="numeric" min="0" max={p.qtyNeeded} value="0" aria-label={`Aantal van ${p.partId} in bezit`} />
+                      <button class="step" data-step="1" aria-label={`Eén meer van ${p.partId}`}>+</button>
+                      <button class="all" aria-label={`Alle ${p.qtyNeeded} van ${p.partId} aan/uit`}>✓</button>
                     </div>
                   </article>
                 );
@@ -146,12 +148,14 @@ const partUrl = (p: { partId: string; colorId: number }) =>
     </main>
 
     <footer>
-      <button id="export-missing" class="primary">Download missing parts (BrickLink XML)</button>
-      <button id="export">Export backup</button>
-      <button id="import">Import backup</button>
+      <button id="export-missing" class="primary">Download ontbrekende stenen</button>
+      <button id="export">Backup exporteren</button>
+      <button id="import">Backup importeren</button>
       <input type="file" id="import-file" accept="application/json" hidden />
       <p>
-        Progress is saved to <code>progress.json</code> on the server. Part data & images from BrickLink.
+        Verlanglijst voor de <a href="https://www.letsgorides.fr/nl/montagehandleiding/147-octopussy-bouwinstructies.html" target="_blank" rel="noopener">Octopussy kermisattractie (MOC van LetsGoRides)</a>.
+        De downloadknop maakt een BrickLink-verlanglijst (XML) van wat je nog mist.
+        Voortgang wordt opgeslagen in <code>progress.json</code> op de server. Onderdeeldata & afbeeldingen van BrickLink.
         <span class="build">build {buildSha}{buildDate && ` · ${buildDate}`}</span>
       </p>
     </footer>
@@ -170,10 +174,10 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       function setSync(stateName: 'synced' | 'local' | 'saving' | 'loading') {
         syncEl.dataset.state = stateName;
         syncLabel.textContent = {
-          synced: 'Synced',
-          local: 'Saved on this device only',
-          saving: 'Saving…',
-          loading: 'Loading…',
+          synced: 'Gesynchroniseerd',
+          local: 'Alleen op dit apparaat opgeslagen',
+          saving: 'Opslaan…',
+          loading: 'Laden…',
         }[stateName];
       }
 
@@ -304,7 +308,6 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       const compare: Record<string, (a: HTMLElement, b: HTMLElement) => number> = {
         color: (a, b) => byColor(a, b) || byPart(a, b),
         part: (a, b) => byPart(a, b) || byColor(a, b),
-        needed: (a, b) => Number(b.dataset.needed) - Number(a.dataset.needed) || byPart(a, b),
         missing: (a, b) => missingOf(b) - missingOf(a) || byPart(a, b),
       };
 
@@ -353,7 +356,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
           missing.set(id, entry);
         }
         if (!missing.size) {
-          alert('Nothing missing — you have every part!');
+          alert('Niets ontbreekt — je hebt alle stenen!');
           return;
         }
         const items = [...missing.values()]
@@ -385,7 +388,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
           applyFilter();
           scheduleSave();
         } catch {
-          alert('That file is not a valid progress backup.');
+          alert('Dat bestand is geen geldige backup.');
         }
         importFile.value = '';
       });
@@ -457,6 +460,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         top: 0;
         z-index: 10;
         padding: 0.9rem 1.2rem 0.8rem;
+        padding-top: calc(0.9rem + env(safe-area-inset-top));
         background: var(--bg);
         border-bottom: 2px solid var(--line);
       }
@@ -547,11 +551,36 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         max-width: 72rem;
         margin: 0.7rem auto 0;
       }
+      #search {
+        flex: 1;
+        max-width: 14rem;
+      }
+      .field {
+        position: relative;
+        flex: 1;
+        max-width: 14rem;
+      }
+      .field label {
+        position: absolute;
+        top: -0.6em;
+        left: 0.7rem;
+        z-index: 1;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        padding: 0 0.3rem;
+        pointer-events: none;
+        /* top half matches the page, bottom half the control, so the
+           label looks notched into the border */
+        background: linear-gradient(to bottom, var(--bg) 52%, var(--card) 52%);
+        border-radius: 0.3rem;
+      }
       #search,
       #color-filter,
       #sort-by {
-        flex: 1;
-        max-width: 14rem;
+        width: 100%;
         padding: 0.45rem 0.7rem;
         font: inherit;
         color: var(--ink);
@@ -606,14 +635,28 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       .missing-toggle {
         display: flex;
         align-items: center;
-        gap: 0.4rem;
         font-size: 0.9rem;
         user-select: none;
+        cursor: pointer;
+        padding: 0.45rem 0.8rem;
+        border: 2px solid var(--line);
+        border-radius: 0.6rem;
+        background: var(--card);
+        white-space: nowrap;
       }
       .missing-toggle input {
-        width: 1.1rem;
-        height: 1.1rem;
-        accent-color: var(--accent);
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .missing-toggle:has(input:checked) {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .missing-toggle:has(input:focus-visible) {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
       }
 
       /* ---------- sections ---------- */
@@ -853,30 +896,42 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         }
         .controls {
           display: grid;
+          /* equal fixed columns: content changes can never shift the layout */
           grid-template-columns: 1fr 1fr;
-          gap: 0.45rem;
+          gap: 0.65rem 0.45rem; /* extra row gap so the notch labels have room */
           margin-top: 0.5rem;
         }
         #search {
+          grid-row: 1;
           grid-column: 1;
           max-width: none;
           font-size: 16px; /* <16px makes iOS zoom in on focus */
           padding: 0.4rem 0.6rem;
         }
         .missing-toggle {
+          grid-row: 1;
           grid-column: 2;
-          justify-self: end;
+          justify-content: center;
           font-size: 0.85rem;
+          padding: 0.4rem 0.7rem;
+        }
+        .field {
+          grid-row: 2;
+          max-width: none;
+        }
+        .field-color {
+          grid-column: 1;
+        }
+        .field-sort {
+          grid-column: 2;
         }
         #color-filter,
         #sort-by {
-          max-width: none;
-          width: 100%;
           white-space: nowrap;
           padding: 0.4rem 0.6rem;
         }
         main {
-          padding: 0.5rem 0.8rem 2rem;
+          padding: 0.5rem 0.8rem calc(2rem + env(safe-area-inset-bottom));
         }
         .section-head {
           margin: 1.1rem 0 0.6rem;
@@ -889,23 +944,28 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         }
         .card {
           display: grid;
-          grid-template-columns: 4.6rem 1fr;
+          grid-template-columns: 5rem 1fr;
           grid-template-areas:
             'img meta'
             'img stepper';
           column-gap: 0.7rem;
-          row-gap: 0.4rem;
+          row-gap: 0.45rem;
           align-items: start;
+          padding: 0.5rem;
         }
         .img-wrap {
           grid-area: img;
-          width: 4.6rem;
+          width: 5rem;
+          align-self: center;
         }
         .card-meta {
           grid-area: meta;
           margin: 0;
           min-height: 0;
           padding-right: 3rem; /* clear the ×N badge */
+        }
+        .part-id {
+          font-size: 1rem;
         }
         .stepper {
           grid-area: stepper;
@@ -918,6 +978,28 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         .owned {
           height: 2.3rem;
           font-size: 16px;
+        }
+
+        footer {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.5rem;
+          padding: 0 0.8rem calc(2.5rem + env(safe-area-inset-bottom));
+        }
+        footer button {
+          padding: 0.65rem 0.5rem;
+          font-size: 0.9rem;
+        }
+        footer button.primary {
+          grid-column: 1 / -1;
+        }
+        footer p {
+          grid-column: 1 / -1;
+        }
+        .build {
+          float: none;
+          display: block;
+          margin-top: 0.3rem;
         }
       }
     </style>

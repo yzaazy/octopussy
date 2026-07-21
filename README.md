@@ -1,6 +1,6 @@
-# Octopussy brick tracker
+# Octopussy kermis ride tracker
 
-A single-page website to track which LEGO parts of the Octopussy model you already own. Part lists come from the three BrickLink wanted-list XML files in the repo root; part images are downloaded from BrickLink at build time and served by the site itself. Progress is stored in a shared `progress.json` on the server so it syncs across devices.
+A single-page website to track which LEGO parts of the [Octopussy fairground ride MOC by LetsGoRides](https://www.letsgorides.fr/nl/montagehandleiding/147-octopussy-bouwinstructies.html) (a Schwarzkopf Monster III kermis ride) you already own. Part lists come from the three BrickLink wanted-list XML files in the repo root; part images are downloaded from BrickLink at build time and served by the site itself. Progress is stored in a shared `progress.json` on the server so it syncs across devices.
 
 ## Develop
 
