@@ -81,6 +81,12 @@ const partUrl = (p: { partId: string; colorId: number }) =>
             </option>
           ))}
         </select>
+        <select id="sort-by" aria-label="Sort parts">
+          <option value="color">Sort: color</option>
+          <option value="part">Sort: part number</option>
+          <option value="needed">Sort: most needed</option>
+          <option value="missing">Sort: most missing</option>
+        </select>
         <label class="missing-toggle">
           <input type="checkbox" id="missing-only" />
           Missing only
@@ -286,6 +292,30 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       searchInput.addEventListener('input', applyFilter);
       colorFilter.addEventListener('change', applyFilter);
       missingOnly.addEventListener('change', applyFilter);
+
+      /* ---------- sorting ---------- */
+
+      const sortBy = document.getElementById('sort-by') as HTMLSelectElement;
+      const byPart = (a: HTMLElement, b: HTMLElement) =>
+        a.dataset.part!.localeCompare(b.dataset.part!, undefined, { numeric: true });
+      const byColor = (a: HTMLElement, b: HTMLElement) =>
+        Number(a.dataset.color) - Number(b.dataset.color);
+      const missingOf = (c: HTMLElement) => Number(c.dataset.needed) - ownedOf(c);
+      const compare: Record<string, (a: HTMLElement, b: HTMLElement) => number> = {
+        color: (a, b) => byColor(a, b) || byPart(a, b),
+        part: (a, b) => byPart(a, b) || byColor(a, b),
+        needed: (a, b) => Number(b.dataset.needed) - Number(a.dataset.needed) || byPart(a, b),
+        missing: (a, b) => missingOf(b) - missingOf(a) || byPart(a, b),
+      };
+
+      // re-sorts on dropdown change only, so cards don't jump around while stepping
+      function applySort() {
+        const cmp = compare[sortBy.value];
+        for (const grid of document.querySelectorAll('.grid')) {
+          [...grid.querySelectorAll<HTMLElement>('.card')].sort(cmp).forEach((c) => grid.appendChild(c));
+        }
+      }
+      sortBy.addEventListener('change', applySort);
 
       /* ---------- events ---------- */
 
@@ -511,13 +541,15 @@ const partUrl = (p: { partId: string; colorId: number }) =>
 
       .controls {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.8rem;
         align-items: center;
         max-width: 72rem;
         margin: 0.7rem auto 0;
       }
       #search,
-      #color-filter {
+      #color-filter,
+      #sort-by {
         flex: 1;
         max-width: 14rem;
         padding: 0.45rem 0.7rem;
@@ -530,10 +562,13 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       /* Colored dots in the dropdown — Chrome's customizable select; other
          browsers ignore this and show plain text options. */
       #color-filter,
-      #color-filter::picker(select) {
+      #color-filter::picker(select),
+      #sort-by,
+      #sort-by::picker(select) {
         appearance: base-select;
       }
-      #color-filter::picker(select) {
+      #color-filter::picker(select),
+      #sort-by::picker(select) {
         background: var(--card);
         color: var(--ink);
         border: 2px solid var(--line);
@@ -542,16 +577,20 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         margin-top: 0.3rem;
         box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
       }
-      #color-filter option {
+      #color-filter option,
+      #sort-by option {
         padding: 0.3rem 0.6rem;
         border-radius: 0.4rem;
       }
       #color-filter option:hover,
-      #color-filter option:focus-visible {
+      #color-filter option:focus-visible,
+      #sort-by option:hover,
+      #sort-by option:focus-visible {
         background: var(--bg);
         outline: none;
       }
-      #color-filter option::checkmark {
+      #color-filter option::checkmark,
+      #sort-by option::checkmark {
         color: var(--accent);
         margin-right: 0.35rem;
       }
