@@ -14,6 +14,10 @@ const sections = [
 
 const totalPieces = sections.reduce((n, s) => n + s.pieces, 0);
 const totalParts = sections.reduce((n, s) => n + s.parts.length, 0);
+
+const usedColors = [...new Set(sections.flatMap((s) => s.parts.map((p) => p.colorId)))]
+  .map((id) => ({ id, name: colorName(id) }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 const STUDS = 20;
 
 // Local copies downloaded by scripts/fetch-images.mjs; BrickLink CDN as fallback.
@@ -56,7 +60,16 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       </div>
 
       <div class="controls">
-        <input type="search" id="search" placeholder="Search part number or color…" autocomplete="off" />
+        <input type="search" id="search" placeholder="Search part number…" autocomplete="off" />
+        <select id="color-filter" aria-label="Filter by color">
+          <option value="">All colors</option>
+          {usedColors.map((c) => (
+            <option value={c.id}>
+              <span class="opt-dot" style={`background:${colorHex(c.id)}`}></span>
+              {c.name}
+            </option>
+          ))}
+        </select>
         <label class="missing-toggle">
           <input type="checkbox" id="missing-only" />
           Missing only
@@ -83,7 +96,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
               {section.parts.map((p) => {
                 const key = `${section.slug}:${p.key}`;
                 return (
-                  <article class="card" data-key={key} data-needed={p.qtyNeeded} data-search={`${p.partId} ${colorName(p.colorId)}`.toLowerCase()}>
+                  <article class="card" data-key={key} data-needed={p.qtyNeeded} data-part={p.partId} data-color={p.colorId}>
                     <span class="qty-badge">×{p.qtyNeeded}</span>
                     <a class="img-wrap" href={partUrl(p)} target="_blank" rel="noopener" tabindex="-1">
                       <img
@@ -116,6 +129,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
     </main>
 
     <footer>
+      <button id="export-missing" class="primary">Download missing parts (BrickLink XML)</button>
       <button id="export">Export backup</button>
       <button id="import">Import backup</button>
       <input type="file" id="import-file" accept="application/json" hidden />
@@ -238,14 +252,17 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       /* ---------- filtering ---------- */
 
       const searchInput = document.getElementById('search') as HTMLInputElement;
+      const colorFilter = document.getElementById('color-filter') as HTMLSelectElement;
       const missingOnly = document.getElementById('missing-only') as HTMLInputElement;
 
       function applyFilter() {
         const q = searchInput.value.trim().toLowerCase();
+        const color = colorFilter.value;
         for (const card of cards) {
-          const matches = !q || card.dataset.search!.includes(q);
+          const matchesText = !q || card.dataset.part!.toLowerCase().includes(q);
+          const matchesColor = !color || card.dataset.color === color;
           const missing = !missingOnly.checked || !card.classList.contains('done');
-          card.hidden = !(matches && missing);
+          card.hidden = !(matchesText && matchesColor && missing);
         }
         for (const section of document.querySelectorAll<HTMLElement>('section')) {
           section.hidden = ![...section.querySelectorAll<HTMLElement>('.card')].some((c) => !c.hidden);
@@ -253,6 +270,7 @@ const partUrl = (p: { partId: string; colorId: number }) =>
       }
 
       searchInput.addEventListener('input', applyFilter);
+      colorFilter.addEventListener('change', applyFilter);
       missingOnly.addEventListener('change', applyFilter);
 
       /* ---------- events ---------- */
@@ -269,15 +287,46 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         });
       }
 
-      /* ---------- backup ---------- */
+      /* ---------- backup & missing-parts export ---------- */
 
-      document.getElementById('export')!.addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      function downloadFile(name: string, content: string, type: string) {
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'octopussy-progress.json';
+        a.href = URL.createObjectURL(new Blob([content], { type }));
+        a.download = name;
         a.click();
         URL.revokeObjectURL(a.href);
+      }
+
+      document.getElementById('export-missing')!.addEventListener('click', () => {
+        // sum missing quantities per part+color across all three lists
+        const missing = new Map<string, { part: string; color: string; qty: number }>();
+        for (const card of cards) {
+          const qty = Number(card.dataset.needed) - ownedOf(card);
+          if (qty <= 0) continue;
+          const id = `${card.dataset.part}-${card.dataset.color}`;
+          const entry = missing.get(id) ?? { part: card.dataset.part!, color: card.dataset.color!, qty: 0 };
+          entry.qty += qty;
+          missing.set(id, entry);
+        }
+        if (!missing.size) {
+          alert('Nothing missing — you have every part!');
+          return;
+        }
+        const items = [...missing.values()]
+          .map(
+            (m) =>
+              `<ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${m.part}</ITEMID><COLOR>${m.color}</COLOR><MINQTY>${m.qty}</MINQTY><CONDITION>X</CONDITION></ITEM>`
+          )
+          .join('\n');
+        downloadFile(
+          'octopussy-missing.xml',
+          `<?xml version="1.0" encoding="UTF-8"?>\n<INVENTORY>\n${items}\n</INVENTORY>\n`,
+          'application/xml'
+        );
+      });
+
+      document.getElementById('export')!.addEventListener('click', () => {
+        downloadFile('octopussy-progress.json', JSON.stringify(state, null, 2), 'application/json');
       });
 
       const importFile = document.getElementById('import-file') as HTMLInputElement;
@@ -450,15 +499,34 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         max-width: 72rem;
         margin: 0.7rem auto 0;
       }
-      #search {
+      #search,
+      #color-filter {
         flex: 1;
-        max-width: 20rem;
+        max-width: 14rem;
         padding: 0.45rem 0.7rem;
         font: inherit;
         color: var(--ink);
         background: var(--card);
         border: 2px solid var(--line);
         border-radius: 0.6rem;
+      }
+      /* Colored dots in the dropdown — Chrome's customizable select; other
+         browsers ignore this and show plain text options. */
+      #color-filter,
+      #color-filter::picker(select) {
+        appearance: base-select;
+      }
+      #color-filter option {
+        padding: 0.3rem 0.6rem;
+      }
+      .opt-dot {
+        display: inline-block;
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 50%;
+        border: 1px solid rgb(0 0 0 / 0.25);
+        margin-right: 0.45rem;
+        vertical-align: -1px;
       }
       .missing-toggle {
         display: flex;
@@ -666,6 +734,12 @@ const partUrl = (p: { partId: string; colorId: number }) =>
         border: 2px solid var(--line);
         background: var(--card);
         font-size: 0.85rem;
+      }
+      footer button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+        font-weight: 700;
       }
       footer p {
         width: 100%;
