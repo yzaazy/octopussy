@@ -1,0 +1,21 @@
+---
+interface Props {
+  buildSha: string;
+  buildDate: string;
+}
+
+const { buildSha, buildDate } = Astro.props;
+---
+
+<footer>
+  <button id="export-missing" class="primary">Download ontbrekende stenen</button>
+  <button id="export">Backup exporteren</button>
+  <button id="import">Backup importeren</button>
+  <input type="file" id="import-file" accept="application/json" hidden />
+  <p>
+    Verlanglijst voor de <a href="https://www.letsgorides.fr/nl/montagehandleiding/147-octopussy-bouwinstructies.html" target="_blank" rel="noopener">Octopussy kermisattractie (MOC van LetsGoRides)</a>.
+    De downloadknop maakt een BrickLink-verlanglijst (XML) van wat je nog mist.
+    Voortgang wordt opgeslagen in <code>progress.json</code> op de server. Onderdeeldata & afbeeldingen van BrickLink.
+    <span class="build">build {buildSha}{buildDate && ` · ${buildDate}`}</span>
+  </p>
+</footer>

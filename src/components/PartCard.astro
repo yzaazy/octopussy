@@ -1,0 +1,46 @@
+---
+import type { WantedPart } from '../lib/parseWantedList';
+import { colorName, colorHex } from '../lib/colors';
+import { partName } from '../lib/partNames';
+
+interface Props {
+  part: WantedPart;
+  sectionSlug: string;
+}
+
+const { part: p, sectionSlug } = Astro.props;
+
+const key = `${sectionSlug}:${p.key}`;
+const name = partName(p.partId);
+// Local copies downloaded by scripts/fetch-images.mjs; BrickLink CDN as fallback.
+const imgUrl = `/parts/${p.colorId}-${p.partId}.png`;
+const cdnUrl = `https://img.bricklink.com/ItemImage/PN/${p.colorId}/${p.partId}.png`;
+const cdnFallback = `https://img.bricklink.com/ItemImage/PL/${p.partId}.png`;
+const partUrl = `https://www.bricklink.com/v2/catalog/catalogitem.page?P=${p.partId}&C=${p.colorId}`;
+---
+
+<article class="card" data-key={key} data-needed={p.qtyNeeded} data-part={p.partId} data-color={p.colorId} data-name={name.toLowerCase()}>
+  <span class="qty-badge">×{p.qtyNeeded}</span>
+  <a class="img-wrap" href={partUrl} target="_blank" rel="noopener" tabindex="-1">
+    <img
+      src={imgUrl}
+      alt={`Part ${p.partId} in ${colorName(p.colorId)}`}
+      loading="lazy"
+      onerror={`if(!this.dataset.f){this.dataset.f=1;this.src='${cdnUrl}'}else{this.onerror=null;this.src='${cdnFallback}'}`}
+    />
+  </a>
+  <div class="card-meta">
+    <a class="part-id" href={partUrl} target="_blank" rel="noopener">{p.partId}</a>
+    {name && <span class="part-name">{name}</span>}
+    <span class="color">
+      <i class="swatch" style={`background:${colorHex(p.colorId)}`}></i>
+      {colorName(p.colorId)}
+    </span>
+  </div>
+  <div class="stepper">
+    <button class="step" data-step="-1" aria-label={`Eén minder van ${p.partId}`}>−</button>
+    <input class="owned" type="number" inputmode="numeric" min="0" max={p.qtyNeeded} value="0" aria-label={`Aantal van ${p.partId} in bezit`} />
+    <button class="step" data-step="1" aria-label={`Eén meer van ${p.partId}`}>+</button>
+    <button class="all" aria-label={`Alle ${p.qtyNeeded} van ${p.partId} aan/uit`}>✓</button>
+  </div>
+</article>

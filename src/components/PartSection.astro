@@ -1,0 +1,34 @@
+---
+import type { WantedPart } from '../lib/parseWantedList';
+import PartCard from './PartCard.astro';
+
+interface Props {
+  slug: string;
+  title: string;
+  parts: WantedPart[];
+  pieces: number;
+}
+
+const { slug, title, parts, pieces } = Astro.props;
+---
+
+<section data-section={slug}>
+  <details open data-collapse={slug}>
+    <summary>
+      <div class="section-head">
+        <span class="chev" aria-hidden="true">▸</span>
+        <h2>{title}</h2>
+        <span class="party">🎉 AF!</span>
+        <div class="section-meta">
+          <span class="section-count" data-count-for={slug}>0 / {pieces}</span>
+          <div class="bar">
+            <div class="bar-fill" data-bar-for={slug}></div>
+          </div>
+        </div>
+      </div>
+    </summary>
+    <div class="grid">
+      {parts.map((part) => <PartCard part={part} sectionSlug={slug} />)}
+    </div>
+  </details>
+</section>

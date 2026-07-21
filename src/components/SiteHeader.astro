@@ -1,0 +1,59 @@
+---
+import { colorHex } from '../lib/colors';
+
+interface Props {
+  totalPieces: number;
+  totalParts: number;
+  usedColors: { id: number; name: string }[];
+  studs: number;
+}
+
+const { totalPieces, totalParts, usedColors, studs } = Astro.props;
+---
+
+<header>
+  <div class="masthead">
+    <h1>Octopussy <span>kermis tracker</span></h1>
+    <div class="sync" id="sync-status" data-state="loading">
+      <span class="sync-dot"></span><span id="sync-label">Laden…</span>
+    </div>
+  </div>
+
+  <div class="overall">
+    <div class="studs" id="stud-bar" role="img" aria-label="Totale voortgang">
+      {Array.from({ length: studs }).map((_, i) => <span class="stud" style={`--i: ${i}`}></span>)}
+    </div>
+    <p class="overall-count">
+      <strong id="pieces-owned">0</strong> van <strong>{totalPieces}</strong> stenen ·
+      <span id="parts-done">0</span>/{totalParts} onderdelen compleet
+    </p>
+  </div>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="Zoek onderdeel…" autocomplete="off" />
+    <div class="field field-color">
+      <label for="color-filter">Kleur</label>
+      <select id="color-filter">
+        <option value="">Alle kleuren</option>
+        {usedColors.map((c) => (
+          <option value={c.id}>
+            <span class="opt-dot" style={`background:${colorHex(c.id)}`}></span>
+            {c.name}
+          </option>
+        ))}
+      </select>
+    </div>
+    <div class="field field-sort">
+      <label for="sort-by">Sorteer</label>
+      <select id="sort-by">
+        <option value="color">Kleur</option>
+        <option value="part">Onderdeelnummer</option>
+        <option value="missing">Meeste nog nodig</option>
+      </select>
+    </div>
+    <label class="missing-toggle">
+      <input type="checkbox" id="missing-only" />
+      Nog nodig
+    </label>
+  </div>
+</header>

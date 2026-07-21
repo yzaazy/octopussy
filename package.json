@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "fetch-images": "node scripts/fetch-images.mjs",
+    "fetch-names": "node scripts/fetch-names.mjs",
     "prebuild": "node scripts/fetch-images.mjs",
     "build": "astro build",
     "preview": "astro preview"
