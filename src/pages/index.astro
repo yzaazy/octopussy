@@ -1,0 +1,688 @@
+---
+import { fileURLToPath } from 'node:url';
+import { parseWantedList } from '../lib/parseWantedList';
+import { colorName, colorHex } from '../lib/colors';
+
+const sections = [
+  { slug: 'octopussy', title: 'Octopussy', file: 'Octopussy.xml' },
+  { slug: 'backwall', title: 'Backwall', file: 'backwall octopussy.xml' },
+  { slug: 'power', title: 'Power', file: 'Octopussy power.xml' },
+].map((s) => {
+  const parts = parseWantedList(fileURLToPath(new URL(`../../${encodeURIComponent(s.file)}`, import.meta.url)));
+  return { ...s, parts, pieces: parts.reduce((n, p) => n + p.qtyNeeded, 0) };
+});
+
+const totalPieces = sections.reduce((n, s) => n + s.pieces, 0);
+const totalParts = sections.reduce((n, s) => n + s.parts.length, 0);
+const STUDS = 20;
+
+// Local copies downloaded by scripts/fetch-images.mjs; BrickLink CDN as fallback.
+const imgUrl = (p: { partId: string; colorId: number }) => `/parts/${p.colorId}-${p.partId}.png`;
+const cdnUrl = (p: { partId: string; colorId: number }) =>
+  `https://img.bricklink.com/ItemImage/PN/${p.colorId}/${p.partId}.png`;
+const cdnFallback = (p: { partId: string }) =>
+  `https://img.bricklink.com/ItemImage/PL/${p.partId}.png`;
+const partUrl = (p: { partId: string; colorId: number }) =>
+  `https://www.bricklink.com/v2/catalog/catalogitem.page?P=${p.partId}&C=${p.colorId}`;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Octopussy brick tracker</title>
+    <link
+      rel="icon"
+      href={`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1" y="5" width="14" height="10" rx="1.5" fill="%23E3000B"/><rect x="3" y="2" width="4" height="4" rx="1" fill="%23E3000B"/><rect x="9" y="2" width="4" height="4" rx="1" fill="%23E3000B"/></svg>').replace(/%2523/g, '%23')}`}
+    />
+  </head>
+  <body>
+    <header>
+      <div class="masthead">
+        <h1>Octopussy <span>brick tracker</span></h1>
+        <div class="sync" id="sync-status" data-state="loading">
+          <span class="sync-dot"></span><span id="sync-label">Loading…</span>
+        </div>
+      </div>
+
+      <div class="overall">
+        <div class="studs" id="stud-bar" role="img" aria-label="Overall progress">
+          {Array.from({ length: STUDS }).map(() => <span class="stud"></span>)}
+        </div>
+        <p class="overall-count">
+          <strong id="pieces-owned">0</strong> of <strong>{totalPieces}</strong> pieces ·
+          <span id="parts-done">0</span>/{totalParts} lots complete
+        </p>
+      </div>
+
+      <div class="controls">
+        <input type="search" id="search" placeholder="Search part number or color…" autocomplete="off" />
+        <label class="missing-toggle">
+          <input type="checkbox" id="missing-only" />
+          Missing only
+        </label>
+      </div>
+    </header>
+
+    <main>
+      {
+        sections.map((section) => (
+          <section data-section={section.slug}>
+            <div class="section-head">
+              <h2>{section.title}</h2>
+              <div class="section-meta">
+                <span class="section-count" data-count-for={section.slug}>
+                  0 / {section.pieces}
+                </span>
+                <div class="bar">
+                  <div class="bar-fill" data-bar-for={section.slug} />
+                </div>
+              </div>
+            </div>
+            <div class="grid">
+              {section.parts.map((p) => {
+                const key = `${section.slug}:${p.key}`;
+                return (
+                  <article class="card" data-key={key} data-needed={p.qtyNeeded} data-search={`${p.partId} ${colorName(p.colorId)}`.toLowerCase()}>
+                    <span class="qty-badge">×{p.qtyNeeded}</span>
+                    <a class="img-wrap" href={partUrl(p)} target="_blank" rel="noopener" tabindex="-1">
+                      <img
+                        src={imgUrl(p)}
+                        alt={`Part ${p.partId} in ${colorName(p.colorId)}`}
+                        loading="lazy"
+                        onerror={`if(!this.dataset.f){this.dataset.f=1;this.src='${cdnUrl(p)}'}else{this.onerror=null;this.src='${cdnFallback(p)}'}`}
+                      />
+                    </a>
+                    <div class="card-meta">
+                      <a class="part-id" href={partUrl(p)} target="_blank" rel="noopener">{p.partId}</a>
+                      <span class="color">
+                        <i class="swatch" style={`background:${colorHex(p.colorId)}`}></i>
+                        {colorName(p.colorId)}
+                      </span>
+                    </div>
+                    <div class="stepper">
+                      <button class="step" data-step="-1" aria-label={`One fewer ${p.partId}`}>−</button>
+                      <input class="owned" type="number" inputmode="numeric" min="0" max={p.qtyNeeded} value="0" aria-label={`Owned quantity of ${p.partId}`} />
+                      <button class="step" data-step="1" aria-label={`One more ${p.partId}`}>+</button>
+                      <button class="all" aria-label={`Toggle all ${p.qtyNeeded} of ${p.partId}`}>✓</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))
+      }
+    </main>
+
+    <footer>
+      <button id="export">Export backup</button>
+      <button id="import">Import backup</button>
+      <input type="file" id="import-file" accept="application/json" hidden />
+      <p>Progress is saved to <code>progress.json</code> on the server. Part data & images from BrickLink.</p>
+    </footer>
+
+    <script>
+      const LS_KEY = 'octopussy-progress';
+      const SERVER_FILE = 'progress.json';
+
+      let state: Record<string, number> = {};
+      const cards = [...document.querySelectorAll<HTMLElement>('.card')];
+
+      /* ---------- persistence ---------- */
+
+      const syncEl = document.getElementById('sync-status')!;
+      const syncLabel = document.getElementById('sync-label')!;
+      function setSync(stateName: 'synced' | 'local' | 'saving' | 'loading') {
+        syncEl.dataset.state = stateName;
+        syncLabel.textContent = {
+          synced: 'Synced',
+          local: 'Saved on this device only',
+          saving: 'Saving…',
+          loading: 'Loading…',
+        }[stateName];
+      }
+
+      let saveTimer: ReturnType<typeof setTimeout> | undefined;
+      function scheduleSave() {
+        setSync('saving');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 800);
+      }
+
+      async function save() {
+        localStorage.setItem(LS_KEY, JSON.stringify(state));
+        try {
+          const res = await fetch(SERVER_FILE, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(state),
+          });
+          setSync(res.ok ? 'synced' : 'local');
+        } catch {
+          setSync('local');
+        }
+      }
+
+      async function load() {
+        let fromServer = false;
+        try {
+          const res = await fetch(SERVER_FILE, { cache: 'no-store' });
+          if (res.ok) {
+            state = (await res.json()) ?? {};
+            fromServer = true;
+          }
+        } catch {}
+        if (!fromServer) {
+          try {
+            state = JSON.parse(localStorage.getItem(LS_KEY) ?? '{}');
+          } catch {
+            state = {};
+          }
+        }
+        setSync(fromServer ? 'synced' : 'local');
+      }
+
+      /* ---------- rendering ---------- */
+
+      function ownedOf(card: HTMLElement) {
+        return Math.min(state[card.dataset.key!] ?? 0, Number(card.dataset.needed));
+      }
+
+      function renderCard(card: HTMLElement) {
+        const owned = ownedOf(card);
+        const needed = Number(card.dataset.needed);
+        card.querySelector<HTMLInputElement>('.owned')!.value = String(owned);
+        card.classList.toggle('done', owned >= needed);
+      }
+
+      function renderTotals() {
+        const perSection: Record<string, { owned: number; needed: number }> = {};
+        let piecesOwned = 0;
+        let piecesNeeded = 0;
+        let lotsDone = 0;
+        for (const card of cards) {
+          const slug = card.dataset.key!.split(':')[0];
+          const owned = ownedOf(card);
+          const needed = Number(card.dataset.needed);
+          const s = (perSection[slug] ??= { owned: 0, needed: 0 });
+          s.owned += owned;
+          s.needed += needed;
+          piecesOwned += owned;
+          piecesNeeded += needed;
+          if (owned >= needed) lotsDone++;
+        }
+        document.getElementById('pieces-owned')!.textContent = String(piecesOwned);
+        document.getElementById('parts-done')!.textContent = String(lotsDone);
+
+        const studs = document.querySelectorAll('#stud-bar .stud');
+        const filled = Math.round((piecesOwned / piecesNeeded) * studs.length);
+        studs.forEach((stud, i) => stud.classList.toggle('filled', i < filled));
+
+        for (const [slug, s] of Object.entries(perSection)) {
+          const pct = s.needed ? (s.owned / s.needed) * 100 : 0;
+          document.querySelector<HTMLElement>(`[data-bar-for="${slug}"]`)!.style.width = `${pct}%`;
+          document.querySelector(`[data-count-for="${slug}"]`)!.textContent = `${s.owned} / ${s.needed}`;
+        }
+      }
+
+      function setOwned(card: HTMLElement, value: number) {
+        const needed = Number(card.dataset.needed);
+        state[card.dataset.key!] = Math.max(0, Math.min(needed, value));
+        renderCard(card);
+        renderTotals();
+        applyFilter();
+        scheduleSave();
+      }
+
+      /* ---------- filtering ---------- */
+
+      const searchInput = document.getElementById('search') as HTMLInputElement;
+      const missingOnly = document.getElementById('missing-only') as HTMLInputElement;
+
+      function applyFilter() {
+        const q = searchInput.value.trim().toLowerCase();
+        for (const card of cards) {
+          const matches = !q || card.dataset.search!.includes(q);
+          const missing = !missingOnly.checked || !card.classList.contains('done');
+          card.hidden = !(matches && missing);
+        }
+        for (const section of document.querySelectorAll<HTMLElement>('section')) {
+          section.hidden = ![...section.querySelectorAll<HTMLElement>('.card')].some((c) => !c.hidden);
+        }
+      }
+
+      searchInput.addEventListener('input', applyFilter);
+      missingOnly.addEventListener('change', applyFilter);
+
+      /* ---------- events ---------- */
+
+      for (const card of cards) {
+        const input = card.querySelector<HTMLInputElement>('.owned')!;
+        input.addEventListener('change', () => setOwned(card, Number(input.value) || 0));
+        for (const btn of card.querySelectorAll<HTMLButtonElement>('.step')) {
+          btn.addEventListener('click', () => setOwned(card, ownedOf(card) + Number(btn.dataset.step)));
+        }
+        card.querySelector('.all')!.addEventListener('click', () => {
+          const needed = Number(card.dataset.needed);
+          setOwned(card, ownedOf(card) >= needed ? 0 : needed);
+        });
+      }
+
+      /* ---------- backup ---------- */
+
+      document.getElementById('export')!.addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'octopussy-progress.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      const importFile = document.getElementById('import-file') as HTMLInputElement;
+      document.getElementById('import')!.addEventListener('click', () => importFile.click());
+      importFile.addEventListener('change', async () => {
+        const file = importFile.files?.[0];
+        if (!file) return;
+        try {
+          state = JSON.parse(await file.text());
+          cards.forEach(renderCard);
+          renderTotals();
+          applyFilter();
+          scheduleSave();
+        } catch {
+          alert('That file is not a valid progress backup.');
+        }
+        importFile.value = '';
+      });
+
+      /* ---------- init ---------- */
+
+      load().then(() => {
+        cards.forEach(renderCard);
+        renderTotals();
+        applyFilter();
+      });
+    </script>
+
+    <style>
+      :root {
+        --bg: #d8e7f4;
+        --card: #ffffff;
+        --ink: #17334d;
+        --ink-soft: #557191;
+        --line: #b7cde1;
+        --accent: #e3000b;
+        --done: #00a845;
+        --done-soft: #e2f5e9;
+        --display: ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', system-ui, sans-serif;
+        --body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e1b29;
+          --card: #17293c;
+          --ink: #e8f0f8;
+          --ink-soft: #8fa8c0;
+          --line: #2b4258;
+          --done-soft: #123a26;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--body);
+        font-size: 15px;
+        line-height: 1.4;
+      }
+      a {
+        color: inherit;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* ---------- header ---------- */
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        padding: 0.9rem 1.2rem 0.8rem;
+        background: var(--bg);
+        border-bottom: 2px solid var(--line);
+      }
+      .masthead {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        max-width: 72rem;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      h1 span {
+        color: var(--ink-soft);
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      .sync {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .sync-dot {
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 50%;
+        background: var(--ink-soft);
+      }
+      .sync[data-state='synced'] .sync-dot {
+        background: var(--done);
+      }
+      .sync[data-state='local'] .sync-dot,
+      .sync[data-state='saving'] .sync-dot {
+        background: #e8a000;
+      }
+
+      .overall {
+        max-width: 72rem;
+        margin: 0.6rem auto 0;
+      }
+      .studs {
+        display: flex;
+        gap: 0.3rem;
+      }
+      .stud {
+        flex: 1;
+        aspect-ratio: 1;
+        max-width: 1.4rem;
+        border-radius: 50%;
+        background: var(--card);
+        border: 2px solid var(--line);
+        transition: background 0.3s, border-color 0.3s;
+      }
+      .stud.filled {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stud,
+        .bar-fill {
+          transition: none;
+        }
+      }
+      .overall-count {
+        margin: 0.4rem 0 0;
+        font-size: 0.85rem;
+        color: var(--ink-soft);
+      }
+      .overall-count strong {
+        font-family: var(--display);
+        color: var(--ink);
+      }
+
+      .controls {
+        display: flex;
+        gap: 0.8rem;
+        align-items: center;
+        max-width: 72rem;
+        margin: 0.7rem auto 0;
+      }
+      #search {
+        flex: 1;
+        max-width: 20rem;
+        padding: 0.45rem 0.7rem;
+        font: inherit;
+        color: var(--ink);
+        background: var(--card);
+        border: 2px solid var(--line);
+        border-radius: 0.6rem;
+      }
+      .missing-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.9rem;
+        user-select: none;
+      }
+      .missing-toggle input {
+        width: 1.1rem;
+        height: 1.1rem;
+        accent-color: var(--accent);
+      }
+
+      /* ---------- sections ---------- */
+
+      main {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 1rem 1.2rem 2rem;
+      }
+      .section-head {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 1.6rem 0 0.8rem;
+      }
+      h2 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 1.15rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .section-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex: 1;
+      }
+      .section-count {
+        font-size: 0.8rem;
+        color: var(--ink-soft);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .bar {
+        flex: 1;
+        max-width: 16rem;
+        height: 0.5rem;
+        border-radius: 0.25rem;
+        background: var(--card);
+        border: 1px solid var(--line);
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        width: 0;
+        background: var(--done);
+        transition: width 0.3s;
+      }
+
+      /* ---------- cards ---------- */
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+        gap: 0.7rem;
+      }
+      .card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        background: var(--card);
+        border: 2px solid var(--line);
+        border-radius: 0.8rem;
+        padding: 0.55rem;
+      }
+      .card.done {
+        border-color: var(--done);
+        background: var(--done-soft);
+      }
+      .qty-badge {
+        position: absolute;
+        top: 0.4rem;
+        right: 0.4rem;
+        z-index: 1;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 0.95rem;
+        padding: 0.05rem 0.4rem;
+        border-radius: 0.4rem;
+        background: var(--accent);
+        color: #fff;
+      }
+      .card.done .qty-badge {
+        background: var(--done);
+      }
+      .img-wrap {
+        display: block;
+        aspect-ratio: 1;
+        border-radius: 0.5rem;
+        background: #fff;
+        overflow: hidden;
+      }
+      .img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        mix-blend-mode: multiply;
+      }
+      .card-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        margin: 0.45rem 0;
+        min-height: 2.4rem;
+      }
+      .part-id {
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-decoration: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .part-id:hover {
+        text-decoration: underline;
+      }
+      .color {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        color: var(--ink-soft);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .swatch {
+        flex: none;
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 50%;
+        border: 1px solid rgb(0 0 0 / 0.25);
+      }
+
+      .stepper {
+        display: flex;
+        gap: 0.3rem;
+        margin-top: auto;
+      }
+      .stepper button {
+        flex: none;
+        width: 1.9rem;
+        height: 1.9rem;
+        border-radius: 0.5rem;
+        border: 2px solid var(--line);
+        background: var(--card);
+        font-weight: 700;
+        line-height: 1;
+      }
+      .stepper button:hover {
+        border-color: var(--ink-soft);
+      }
+      .owned {
+        flex: 1;
+        width: 100%;
+        min-width: 0;
+        text-align: center;
+        font: inherit;
+        font-weight: 700;
+        color: var(--ink);
+        background: var(--card);
+        border: 2px solid var(--line);
+        border-radius: 0.5rem;
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+      .owned::-webkit-inner-spin-button {
+        display: none;
+      }
+      .all {
+        color: var(--done);
+      }
+      .card.done .all {
+        background: var(--done);
+        border-color: var(--done);
+        color: #fff;
+      }
+
+      /* ---------- footer ---------- */
+
+      footer {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 0 1.2rem 2.5rem;
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      footer button {
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.6rem;
+        border: 2px solid var(--line);
+        background: var(--card);
+        font-size: 0.85rem;
+      }
+      footer p {
+        width: 100%;
+        margin: 0.3rem 0 0;
+        font-size: 0.78rem;
+        color: var(--ink-soft);
+      }
+
+      @media (max-width: 480px) {
+        .grid {
+          grid-template-columns: repeat(auto-fill, minmax(8.2rem, 1fr));
+        }
+        .masthead {
+          flex-wrap: wrap;
+          gap: 0.2rem;
+        }
+      }
+    </style>
+  </body>
+</html>
