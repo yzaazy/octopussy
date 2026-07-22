@@ -79,8 +79,16 @@ function showOnList(hits: HTMLElement[]) {
   hits[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-function renderResults(items: Candidate[]) {
-  const top = items.slice(0, 6);
+function renderResults(items: unknown[]) {
+  // het antwoord komt van een externe API: alleen items met de verwachte
+  // veldtypes gebruiken, de rest overslaan
+  const safe = items.filter(
+    (it): it is Candidate =>
+      typeof (it as Candidate)?.id === 'string' &&
+      typeof (it as Candidate)?.name === 'string' &&
+      typeof (it as Candidate)?.score === 'number',
+  );
+  const top = safe.slice(0, 6);
   if (!top.length) {
     setStatus('Geen onderdeel herkend. Leg één steen op een egale achtergrond en probeer het opnieuw.');
     return;
@@ -96,7 +104,8 @@ function renderResults(items: Candidate[]) {
     el.disabled = !hits.length;
 
     const img = document.createElement('img');
-    img.src = item.img_url;
+    // alleen https-plaatjes van de API accepteren
+    if (typeof item.img_url === 'string' && item.img_url.startsWith('https://')) img.src = item.img_url;
     img.alt = '';
     img.loading = 'lazy';
 
@@ -116,7 +125,7 @@ function renderResults(items: Candidate[]) {
 
     const score = document.createElement('span');
     score.className = 'scan-score';
-    score.textContent = `${Math.round(item.score * 100)}%`;
+    score.textContent = `${Math.round(Math.min(1, Math.max(0, item.score)) * 100)}%`;
 
     el.append(img, meta, score);
     if (hits.length) el.addEventListener('click', () => showOnList(hits));
@@ -133,7 +142,7 @@ async function recognize(file: File) {
     const res = await fetch(API_URL, { method: 'POST', body: form });
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json();
-    renderResults((data.items ?? []) as Candidate[]);
+    renderResults(Array.isArray(data?.items) ? data.items : []);
   } catch {
     setStatus('Herkennen is niet gelukt. Controleer je internetverbinding en probeer het opnieuw.');
   }
