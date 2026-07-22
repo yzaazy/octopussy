@@ -755,6 +755,19 @@ h2 {
   border-color: var(--done);
   color: #fff;
 }
+/* gewapende ✓ die op een tweede tik wacht — na .card.done .all zodat
+   deze staat ook op een afgeronde (groene) kaart zichtbaar wint */
+.card .all.confirm {
+  background: #f0a500;
+  border-color: #f0a500;
+  color: #fff;
+  animation: confirm-pulse 0.9s ease infinite;
+}
+@keyframes confirm-pulse {
+  50% {
+    transform: scale(1.15);
+  }
+}
 
 /* ---------- footer ---------- */
 

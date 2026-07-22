@@ -36,11 +36,41 @@ for (const card of cards) {
   for (const btn of card.querySelectorAll<HTMLButtonElement>('.step')) {
     btn.addEventListener('click', () => setOwned(card, ownedOf(card) + Number(btn.dataset.step)));
   }
-  card.querySelector('.all')!.addEventListener('click', () => {
+  // de ✓ zit naast de +1 en zet in één klap alles op vol (of terug naar
+  // 0), dus een misklik is snel gemaakt: eerste tik wapent de knop,
+  // pas een tweede tik binnen 3s voert hem echt uit
+  const allBtn = card.querySelector<HTMLButtonElement>('.all')!;
+  allBtn.dataset.label = allBtn.getAttribute('aria-label')!;
+  let confirmTimer = 0;
+  const disarm = () => {
+    clearTimeout(confirmTimer);
+    allBtn.classList.remove('confirm');
+    allBtn.textContent = '✓';
+    allBtn.setAttribute('aria-label', allBtn.dataset.label!);
+  };
+  allBtn.addEventListener('click', () => {
+    if (!allBtn.classList.contains('confirm')) {
+      allBtn.classList.add('confirm');
+      allBtn.textContent = '?';
+      allBtn.setAttribute('aria-label', 'Tik nog eens om te bevestigen');
+      confirmTimer = window.setTimeout(disarm, 3000);
+      return;
+    }
+    disarm();
     const needed = Number(card.dataset.needed);
     setOwned(card, ownedOf(card) >= needed ? 0 : needed);
   });
 }
+
+// een tik ergens anders ontwapent een wachtende ✓ meteen
+document.addEventListener('click', (e) => {
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.all.confirm')) {
+    if (b === e.target) continue;
+    b.classList.remove('confirm');
+    b.textContent = '✓';
+    b.setAttribute('aria-label', b.dataset.label!);
+  }
+});
 
 initTotals(cards, burstConfetti);
 initFilters(cards);
