@@ -656,6 +656,10 @@ h2 {
 .card.done .qty-badge {
   background: var(--done);
 }
+/* deels in bezit: badge toont "nog X" in oranje */
+.card.partial .qty-badge {
+  background: #f0a500;
+}
 .img-wrap {
   display: block;
   aspect-ratio: 1;
@@ -914,7 +918,7 @@ footer p {
     grid-area: meta;
     margin: 0;
     min-height: 0;
-    padding-right: 3rem; /* clear the ×N badge */
+    padding-right: 4rem; /* clear the ×N / "nog X" badge */
   }
   .part-id {
     font-size: 1rem;

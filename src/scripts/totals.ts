@@ -22,6 +22,11 @@ export function renderCard(card: HTMLElement) {
   const needed = Number(card.dataset.needed);
   card.querySelector<HTMLInputElement>('.owned')!.value = String(owned);
   card.classList.toggle('done', owned >= needed);
+  // het badge toont hoeveel er nog moeten zodra je een deel hebt;
+  // bij 0 of compleet gewoon weer het totaal
+  const partial = owned > 0 && owned < needed;
+  card.classList.toggle('partial', partial);
+  card.querySelector('.qty-badge')!.textContent = partial ? `nog ${needed - owned}` : `×${needed}`;
 }
 
 export function renderTotals() {
